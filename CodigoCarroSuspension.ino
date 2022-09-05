@@ -1,54 +1,53 @@
-// PINS
-//  Motor
+//------------Pines usados para el control del carro-llantas------------//
 int izqA = 9;
 int izqB = 10;
 int derA = 11;
 int derB = 12;
 
-//  Motor A for Suspension
-int const ENA_SUSP = 3;
+//------------Pines usados para el control de la suspension------------//
+//  Bobina Izquierda de la Suspension
+int const ENA_SUSP = 3; // controld el pwm
 int const IN1 = 5;
 int const IN2 = 4;
-//  Motor B for Suspension
-int const ENB_SUSP = 6;
+//  Motor Derecha de la Suspension
+int const ENB_SUSP = 6; // controld el pwm
 int const IN3 = 7;
 int const IN4 = 8;
 
-// CONSTANTS
-int const MIN_SPEED = 10;    // Set to minimum PWM value that will make motors turn
-int const ACCEL_DELAY = 50;  // delay between steps when ramping motor speed up or down.
-int const inc_dec_amount = 2;
+//------------Variables constantes------------//
+int const MIN_SPEED = 10;    // Minima señal pwm
+int const ACCEL_DELAY = 50;  // tiempo de subida y bajada
+int const inc_dec_amount = 2; // contante de incremento suspensión
 
-// VARIABLES
-char bluetooth;
+//------------Variables constantes de la comunicación bluetooth------------//
+char bluetooth; // variable donde se guarda el valor recibido por el bluetoot del celular
 bool suspension_mode;
-// Suspension
+
+// Variables de Suspensión
 char susp_curr_direction_right;
 char susp_curr_direction_left;
 int susp_curr_speed_right;
 int susp_curr_speed_left;
-// Wheels
-int wheel_speed;
 
 //===============================================================================
-//  Initialization
+//  Inicialización y configuracion de los Pines
 //===============================================================================
 void setup() {
-  // Wheels
+  // Moviemiento del carro
   pinMode(derA, OUTPUT);
   pinMode(derB, OUTPUT);
   pinMode(izqA, OUTPUT);
   pinMode(izqB, OUTPUT);
 
-  // Suspension
-  pinMode(ENA_SUSP, OUTPUT);  // set all the motor control pins to outputs
+  // Control de la suspensión
+  pinMode(ENA_SUSP, OUTPUT);  
   pinMode(ENB_SUSP, OUTPUT);
   pinMode(IN1, OUTPUT);
   pinMode(IN2, OUTPUT);
   pinMode(IN3, OUTPUT);
   pinMode(IN4, OUTPUT);
 
-  // Turn off motors - Initial state
+  // Se inizializa el movimiento del carro y de la suspension en modo apagado, protección
   digitalWrite(derA, LOW);
   digitalWrite(derB, LOW);
   digitalWrite(izqA, LOW);
@@ -58,144 +57,111 @@ void setup() {
   digitalWrite(IN3, LOW);
   digitalWrite(IN4, LOW);
 
-  // Default selections for Suspension
+  // Valores de inizialización de la suspension valores por defecto
   suspension_mode = false;
   susp_curr_direction_right = 'F';  // forward
   susp_curr_direction_left = 'F';   // forward
   susp_curr_speed_right = 0;        // stop
   susp_curr_speed_left = 0;         // stop
 
-  // Default selections for Wheels
-  wheel_speed = 0;
-
-  Serial.begin(38400);  // Set comm speed for serial monitor messages and bluetooth
+  Serial.begin(38400);  // Configuracion de la velocidad entre el arduino y el Bluetooth a 38400 Baud/s
 }
 //===============================================================================
 //  Main
 //===============================================================================
 void loop() {
-  Serial.println(bluetooth);
+  // Comunicación Serial- Bluetooth
   if (Serial.available()) {
     bluetooth = Serial.read();
     Serial.println(bluetooth);
   }
 
-  // mode selection
+  // Mdo de Suspensción elije si quiere modo carro o modo suspensión
   if (bluetooth == 'X')
-    suspension_mode = true;
+    suspension_mode = true; // entra al control de la suspensión electromagnetica
   else if (bluetooth == 'x')
-    suspension_mode = false;
+    suspension_mode = false; // entra al control del movimiento del carro
+
+///------------Bloque del control de la suspensión------------//
 
   if (suspension_mode) {
     switch (bluetooth) {
+      // La suspension se levanta
       case 'F':
-        // set preference using bluetooth input
         setDirAndSpeed('F', susp_curr_direction_right, susp_curr_speed_right);
         setDirAndSpeed('F', susp_curr_direction_left, susp_curr_speed_left);
         break;
+        // La suspension baja
       case 'B':
-        // set preference using bluetooth input
         setDirAndSpeed('B', susp_curr_direction_right, susp_curr_speed_right);
         setDirAndSpeed('B', susp_curr_direction_left, susp_curr_speed_left);
         break;
-
-      // forward-right & back-right respectively
+        // la suspension levanta lado derecho
       case 'I':
         setDirAndSpeed('F', susp_curr_direction_right, susp_curr_speed_right);
         break;
+        // la suspension baja lado derecho
       case 'J':
         setDirAndSpeed('B', susp_curr_direction_right, susp_curr_speed_right);
         break;
-
-      // forward-left & back-left respectively
+        // la suspension levanta lado izquierdo
       case 'G':
         setDirAndSpeed('F', susp_curr_direction_left, susp_curr_speed_left);
         break;
+        // la suspension baja lado izquierdo
       case 'H':
         setDirAndSpeed('B', susp_curr_direction_left, susp_curr_speed_left);
         break;
 
-      // stop
+      // Para, resetea el valor
       case 'W':
       case 'w':
-        susp_curr_direction_right = 'F';  // forward
-        susp_curr_speed_right = 0;        // stop
-        susp_curr_direction_left = 'F';   // forward
-        susp_curr_speed_left = 0;         // stop
+        susp_curr_direction_right = 'F';  // Levanta
+        susp_curr_speed_right = 0;        // para
+        susp_curr_direction_left = 'F';   // Levanta
+        susp_curr_speed_left = 0;         // para
         break;
 
       default:
         break;
     }
-    // apply selected state
+    // aplica el estado de selección
     DriverMotor('A', susp_curr_direction_right, susp_curr_speed_right);
     DriverMotor('B', susp_curr_direction_left, susp_curr_speed_left);
   }
 
+///------------Bloque del control de la controldel carro------------//
   else {
-    // wheel speed selection
     switch (bluetooth) {
-      case '0':
-        wheel_speed = 0;
-        break;
-      case '1':
-        wheel_speed = 10;
-        break;
-      case '2':
-        wheel_speed = 20;
-        break;
-      case '3':
-        wheel_speed = 30;
-        break;
-      case '4':
-        wheel_speed = 40;
-        break;
-      case '5':
-        wheel_speed = 50;
-        break;
-      case '6':
-        wheel_speed = 60;
-        break;
-      case '7':
-        wheel_speed = 70;
-        break;
-      case '8':
-        wheel_speed = 80;
-        break;
-      case '9':
-        wheel_speed = 90;
-        break;
-      case 'q':
-        wheel_speed = 100;
-        break;
-      default:
-        break;
-    }
-    switch (bluetooth) {
+      // El carro queda en detenido, parado
       case 'S':
         digitalWrite(derB, LOW);
         digitalWrite(izqB, LOW);
         digitalWrite(derA, LOW);
         digitalWrite(izqA, LOW);
         break;
+        // EL carro avanza 
       case 'F':
         digitalWrite(derB, LOW);
         digitalWrite(izqB, LOW);
         digitalWrite(derA, HIGH);
         digitalWrite(izqA, HIGH);
         break;
+        // EL carro retrocede
       case 'B':
         digitalWrite(derA, LOW);
         digitalWrite(izqA, LOW);
         digitalWrite(derB, HIGH);
         digitalWrite(izqB, HIGH);
         break;
+        // El carro gira a la derecha
       case 'R':
         digitalWrite(derB, HIGH);
         digitalWrite(izqB, LOW);
         digitalWrite(derA, LOW);
         digitalWrite(izqA, HIGH);
         break;
+        // El carro gira a la Inquierda
       case 'L':
         digitalWrite(derB, LOW);
         digitalWrite(izqB, HIGH);
@@ -208,14 +174,9 @@ void loop() {
   }
   delay(10);
 }
-/*
- * Motor function does all the heavy lifting of controlling the motors
- * mot = motor to control either 'A' or 'B'.  'C' controls both motors.
- * dir = Direction either 'F'orward or 'R'everse
- * speed = Speed.  Takes in 1-100 percent and maps to 0-255 for PWM control.  
- * Mapping ignores speed values that are too low to make the motor turn.
- * In this case, anything below 27, but 0 still means 0 to stop the motors.
- */
+
+///------------Bloque del control de los movimientos de la suspension------------//
+// alzado, reposo, izquierdo o derecho
 void DriverMotor(char mot, char dir, int speed) {
   // remap the speed from range 0-100 to 0-255
   int newspeed;
@@ -265,49 +226,11 @@ void DriverMotor(char mot, char dir, int speed) {
   }
 }
 
-// void ShieldMotor(char mot, char dir, int speed) {
-//   // remap the speed from range 0-100 to 0-255
-//   int newspeed;
-//   if (speed == 0)
-//     newspeed = 0;  // Don't remap zero, but remap everything else.
-//   else
-//     newspeed = map(speed, 1, 100, MIN_SPEED, 255);
 
-//   switch (mot) {
-//     case 'A':  // Controlling Motor A
-//       if (dir == 'F') {
-//         digitalWrite(INA_WHEEL, HIGH);
-//       } else if (dir == 'R') {
-//         digitalWrite(INB_WHEEL, LOW);
-//       }
-//       analogWrite(ENA_WHEEL, newspeed);
-//       break;
-
-//     case 'B':  // Controlling Motor B
-//       if (dir == 'F') {
-//         digitalWrite(INB_WHEEL, HIGH);
-//       } else if (dir == 'R') {
-//         digitalWrite(INA_WHEEL, LOW);
-//       }
-//       analogWrite(ENB_WHEEL, newspeed);
-//       break;
-
-//     case 'C':  // Controlling Both Motors
-//       if (dir == 'F') {
-//         digitalWrite(INA_WHEEL, HIGH);
-//         digitalWrite(INB_WHEEL, HIGH);
-//       } else if (dir == 'R') {
-//         digitalWrite(INA_WHEEL, LOW);
-//         digitalWrite(INB_WHEEL, LOW);
-//       }
-//       analogWrite(ENA_WHEEL, newspeed);
-//       analogWrite(ENB_WHEEL, newspeed);
-//       break;
-//   }
-// }
-
+///------------Bloque del control pwm y altura de la suspensión------------//
 void setDirAndSpeed(char requested_dir, char &curr_direction, int &curr_speed) {
   switch (requested_dir) {
+    // La suspension se levanta
     case 'F':
       if (curr_direction == 'F' && 100 - inc_dec_amount < curr_speed)
         curr_speed = 100;
@@ -323,7 +246,7 @@ void setDirAndSpeed(char requested_dir, char &curr_direction, int &curr_speed) {
       else
         curr_speed -= inc_dec_amount;
       break;
-
+    // La suspensio baja
     case 'B':
       if (curr_direction == 'R' && 100 - inc_dec_amount < curr_speed)
         curr_speed = 100;
